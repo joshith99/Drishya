@@ -1,0 +1,80 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environments
+venv/
+myenv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+Untitled*.ipynb
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Project-specific outputs
+frames/
+output/
+outputs/
+extracted_frames/
+
+# Results and data
+*.csv
+results.csv
+comparison.png
+comparison_*.png
+
+# Video files (optional - uncomment if you don't want to track videos)
+# *.mp4
+# *.avi
+# *.mov
+# *.mkv
+# *.wmv
+# *.flv
+
+# Checkpoints and models (for future deep learning integration)
+checkpoints/
+*.pth
+*.pt
+*.h5
+*.ckpt
+*.pb
+
+# Logs
+logs/
+*.log
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
