@@ -38,9 +38,12 @@ No-Reference Video Quality Assessment (NR-VQA), also known as blind quality asse
 ## Project Structure
 ```
 Review-1/
-├── sample_frames.py      # Extract frames from videos
-├── nr_features.py        # Calculate NR quality metrics
-├── compare_videos.py     # Compare two videos side-by-side
+├── brisque.py            # Calculate BRISQUE and classical NR metrics (Requires internet for model download on first run)
+├── compare_brisque.py    # Compare two videos using BRISQUE & classical metrics
+├── generate_test_videos.py # Tool to generate degraded videos (blur, noise, compression)
+├── nrvqa_roadmap.md      # Strategic roadmap for future enhancements
+├── archive/              # Unused or deprecated scripts (e.g., nr_features.py, compare_videos.py, sample_frames.py)
+├── testing_videos/       # Directory for input and generated test video files
 ├── requirements.txt      # Python dependencies
 ├── CHANGELOG.md          # Version history
 └── README.md             # This file
@@ -78,72 +81,33 @@ pip install -r requirements.txt
 
 ## Usage
 
-### 1. Extract Frames from Video
+### 1. Generate Test Videos
+Generate controlled degradations (blur, noise, compression) from a high-quality source video:
 ```bash
-# Basic usage - extract every 30th frame
-python sample_frames.py video.mp4
-
-# Custom output directory
-python sample_frames.py video.mp4 --output_dir my_frames
-
-# Extract every 15th frame, max 50 frames
-python sample_frames.py video.mp4 --sample_rate 15 --max_frames 50
+python generate_test_videos.py testing_videos/original.mp4 --all --output_dir testing_videos/
 ```
-
-**Options:**
-- `--output_dir, -o`: Output directory (default: `frames`)
-- `--sample_rate, -s`: Extract one frame every N frames (default: 30)
-- `--max_frames, -m`: Maximum number of frames to extract
 
 ### 2. Calculate Quality Metrics
+Run BRISQUE and classical metrics on random frames:
 ```bash
-# Basic analysis
-python nr_features.py video.mp4
-
-# Save results to CSV
-python nr_features.py video.mp4 --output results.csv
-
-# Custom sampling
-python nr_features.py video.mp4 --sample_rate 15 --max_frames 100
+python brisque.py testing_videos/video.mp4 --samples 10
 ```
-
-**Output Metrics:**
-- Frame number and timestamp
-- Blurriness (Laplacian Variance) - Higher is better
-- Blockiness 8×8 (Std Dev) - Lower is better
-- Blockiness 16×16 (Std Dev) - Lower is better
-- Noise Level (σ) - Lower is better
 
 ### 3. Compare Two Videos
+Compare original vs. degraded video with visualization:
 ```bash
-# Compare two videos with visualization
-python compare_videos.py video1.mp4 video2.mp4
-
-# Save comparison plot
-python compare_videos.py video1.mp4 video2.mp4 --output comparison.png
-
-# Custom sampling for faster processing
-python compare_videos.py video1.mp4 video2.mp4 --sample_rate 60
+python compare_brisque.py testing_videos/original.mp4 testing_videos/degraded.mp4 --samples 15
 ```
-
-**Output:**
-- 6-panel comparison visualization
-- Temporal quality graphs for all metrics
-- Statistical summary (means, improvements)
-- Normalized quality radar chart
 
 ## Example Workflow
 
 ### Scenario: Comparing Original vs. Compressed Video
 ```bash
-# 1. Analyze original video
-python nr_features.py original.mp4 --output original_metrics.csv
+# 1. Generate heavily compressed video
+python generate_test_videos.py testing_videos/original.mp4 --compress --output_dir testing_videos/
 
-# 2. Analyze compressed video
-python nr_features.py compressed.mp4 --output compressed_metrics.csv
-
-# 3. Visual comparison
-python compare_videos.py original.mp4 compressed.mp4 --output comparison.png
+# 2. Visual comparison
+python compare_brisque.py testing_videos/original.mp4 testing_videos/original_compress.mp4
 ```
 
 ### Interpreting Results

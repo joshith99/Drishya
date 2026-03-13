@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- [2026-03-13] Cleaned repository structure (moved original scripts to `archive/`)
+- [2026-03-13] Added `testing_videos/` directory to store high-quality and degraded video samples
+- [2026-03-13] Added `nrvqa_roadmap.md` detailing future plans including AI and Temporal integration
+- [2026-03-13] Added `generate_test_videos.py` to create synthetic noise, blur, and compression datasets
+- [2026-03-13] Added `brisque.py` and `compare_brisque.py` for executing perception-based NR-VQA
+
+## [1.0.0] - 2026-02-09
 
 ### Added
 - Initial project setup with three core tools
