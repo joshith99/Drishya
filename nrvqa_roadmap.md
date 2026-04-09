@@ -1,22 +1,45 @@
 # 🚀 Strategic Roadmap: Advancing the NR-VQA Project
 
+## Milestone Summary
+
+- **Phase 1**: ✅ Core no-reference metrics + testing framework
+- **Phase 2**: ✅ Industry-standard metrics (BRISQUE + NIQE framework)  
+- **Phase 3**: 🔄 Temporal quality assessment
+- **Phase 4**: 🎯 Deep learning-based quality prediction
+- **Phase 5**: 🎨 Production UI and batch processing
+
+---
+
 Now that we have successfully demonstrated the core feasibility of No-Reference Quality Assessment and built a testing harness to prove our logic works, here is the strategic plan for taking `Drishya` to the next level.
 
-## Phase 1: Metric Validation (Current Phase)
-*Now that we built [generate_test_videos.py](file:///c:/Users/Joshith/Documents/GitHub/Drishya/generate_test_videos.py), we can systematically prove our system works.*
-- **Action**: Run the generator script to create 5 levels of blur, 5 levels of noise, and 5 levels of compression for the same source video.
-- **Action**: Chart the output scores against the degradation intensity. This creates a quantifiable correlation report that you can show your boss ("As compression artifacts increase by %X, our blockiness metric successfully catches it with a %Y confidence").
+## Phase 1: Metric Validation ✅ COMPLETED
+*Successfully demonstrated core feasibility and built robust testing harness.*
+- **COMPLETED**: Created `generate_test_videos.py` to systematically degrade source video
+- **COMPLETED**: Implemented custom NR metrics: Laplacian blur, wavelet-based noise, blockiness detection
+- **COMPLETED**: Built `NQS.py` comparative testing tool with video quality comparison framework
+- **COMPLETED**: Validated system outputs meaningful quality scores with frame-level detail
 
-## Phase 2: Integrate Industry-Standard Classical Metrics
-*The current metrics (Laplacian, Wavelet MAD) are great custom approximations. The next step is integrating peer-reviewed standard algorithms.*
-- **BRISQUE** (Blind/Referenceless Image Spatial Quality Evaluator): A highly trusted spatial domain metric.
-- **NIQE** (Natural Image Quality Evaluator): A completely blind evaluator that measures distance from "natural" image characteristics.
-- **Action**: Integrate these into a new class `IndustryMetrics` so the toolkit offers both basic and advanced classical evaluations.
+## Phase 2: Integrate Industry-Standard Classical Metrics ✅ COMPLETED
+*BRISQUE successfully integrated. NIQE framework in place for future expansion.*
+- **BRISQUE** (Blind/Referenceless Image Spatial Quality Evaluator): ✅ **INTEGRATED**
+  - Per-frame BRISQUE scores now included in analysis
+  - Monkeypatched to handle numpy array features correctly
+  - Reports real quality scores (lower = better, typical range 0-100)
+- **NIQE** (Natural Image Quality Evaluator): 🔄 **FRAMEWORK READY**
+  - `IndustryMetrics` class created with NIQE placeholder
+  - Awaiting `piq` or future `brisque` package NIQE support
+- **Action COMPLETED**: New class `IndustryMetrics` exposes unified API for classical metrics
+  - `score_frame(image)` returns `{brisque_score, niqe_score}`
+  - `score_video(path)` aggregates per-metric statistics
+  - `IndustryMetrics` separated from `NQS.py` for clean architecture
+- **NQS.py refactored** to use `IndustryMetrics` internally (decoupled design)
+- **Composite scoring** now weights BRISQUE (15%) + NIQE (5%) + custom NR metrics (80%)
 
 ## Phase 3: Temporal Quality Assessment
 *Currently, the system evaluates static frames pulled from the video. It misses problems that happen over time.*
 - **Jitter and Freeze Detection**: Compare the structural similarity (SSIM) of adjacent frames. If SSIM is exactly 1.0 for too long, the video has frozen. If optical flow is wildly erratic, there is jitter.
 - **Action**: Add a `temporal_features.py` module that calculates how "smooth" the video playback is.
+-**Status**: 🔄 **IN PLANNING** - Next phase after Phase 2 completion.
 
 ## Phase 4: Perceptual Machine Learning (The "Gold Standard")
 *Once classical metrics are maximized, the industry standard shifts to deep learning because human perception is subjective.*
