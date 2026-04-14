@@ -2,3 +2,6 @@ opencv-python>=4.8.0
 numpy>=1.24.0
 PyWavelets>=1.4.1
 matplotlib>=3.7.0
+Pillow>=10.0.0
+brisque>=0.1.0# Phase 2 future: NIQE from piq (PyTorch Image Quality)
+# piq>=0.8.0  # Uncomment when NIQE integration is needed
