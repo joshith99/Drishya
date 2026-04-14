@@ -7,21 +7,34 @@ import cv2
 import numpy as np
 import argparse
 import os
+import sys
 from pathlib import Path
 from nr_features import NoReferenceFeatures
 from industry_metrics import IndustryMetrics
 
+# Ensure current directory is in path for local imports
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+if _current_dir not in sys.path:
+    sys.path.insert(0, _current_dir)
+
+from temporal_features import TemporalFeatures
+
+# Import BRISQUE with safe path handling
+BRISQUE_AVAILABLE = False
+BRISQUE = None
+
 try:
     # Handle the import shadowing issue
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    original_path = []
-    if current_dir in __import__('sys').path:
-        original_path = __import__('sys').path[:]
-        __import__('sys').path.remove(current_dir)
-    if '' in __import__('sys').path:
-        __import__('sys').path.remove('')
-    if os.path.abspath('.') in __import__('sys').path:
-        __import__('sys').path.remove(os.path.abspath('.'))
+    original_path = sys.path[:]
+    
+    # Remove current directory and relative paths to avoid shadowing
+    if current_dir in sys.path:
+        sys.path.remove(current_dir)
+    if '' in sys.path:
+        sys.path.remove('')
+    if os.path.abspath('.') in sys.path:
+        sys.path.remove(os.path.abspath('.'))
 
     from brisque import BRISQUE
     BRISQUE_AVAILABLE = True
@@ -47,11 +60,9 @@ try:
     BRISQUE.scale_features = _fixed_scale_features
 
     # Restore path
-    if original_path:
-        __import__('sys').path = original_path
-except ImportError:
-    BRISQUE_AVAILABLE = False
-    print("Warning: BRISQUE package not available. Install with: pip install brisque")
+    sys.path = original_path
+except ImportError as e:
+    print(f"Warning: BRISQUE package not available. Install with: pip install brisque ({e})")
 
 
 
@@ -64,6 +75,7 @@ class NoReferenceQualityScorer:
     def __init__(self):
         self.nr_features = NoReferenceFeatures()
         self.industry_metrics = IndustryMetrics()
+        self.temporal_features = TemporalFeatures()
 
     def score_frame(self, frame):
         """
@@ -108,7 +120,7 @@ class NoReferenceQualityScorer:
             'quality_rating': self._get_quality_rating(composite_score)
         }
 
-    def _calculate_composite_score(self, blur, block8, block16, noise, brisque=None, niqe=None):
+    def _calculate_composite_score(self, blur, block8, block16, noise, brisque=None, niqe=None, temporal=None):
         """
         Calculate a composite quality score from individual metrics.
 
@@ -135,32 +147,26 @@ class NoReferenceQualityScorer:
         if niqe is not None:
             niqe_norm = max(0, 1.0 - niqe / 100.0)
 
-        # Weighted combination
-        weights = {
-            'blur': 0.25,
-            'block8': 0.20,
-            'block16': 0.15,
-            'noise': 0.20,
-            'brisque': 0.15 if brisque is not None else 0,
-            'niqe': 0.05 if niqe is not None else 0
-        }
+        temporal_norm = temporal if temporal is not None else 1.0
 
-        composite = (
-            weights['blur'] * blur_norm +
-            weights['block8'] * block8_norm +
-            weights['block16'] * block16_norm +
-            weights['noise'] * noise_norm +
-            weights['brisque'] * brisque_norm +
-            weights['niqe'] * niqe_norm
-        )
+        # Weighted combination (renormalized over available metrics).
+        weighted_metrics = [
+            ('blur', blur_norm, 0.25),
+            ('block8', block8_norm, 0.20),
+            ('block16', block16_norm, 0.15),
+            ('noise', noise_norm, 0.20),
+        ]
 
-        # Adjust weights if metrics not available
-        available_weight = sum(weights.values())
-        if brisque is None and niqe is None:
-            # Redistribute weights among available metrics
-            composite = composite / (available_weight - weights['brisque'] - weights['niqe'])
+        if brisque is not None:
+            weighted_metrics.append(('brisque', brisque_norm, 0.15))
+        if niqe is not None:
+            weighted_metrics.append(('niqe', niqe_norm, 0.05))
+        if temporal is not None:
+            weighted_metrics.append(('temporal', temporal_norm, 0.20))
 
-        return composite
+        weighted_sum = sum(val * weight for _, val, weight in weighted_metrics)
+        total_weight = sum(weight for _, _, weight in weighted_metrics)
+        return weighted_sum / total_weight if total_weight > 0 else 0.0
 
     def _get_quality_rating(self, composite_score):
         """
@@ -177,7 +183,7 @@ class NoReferenceQualityScorer:
         else:
             return "Very Poor"
 
-    def analyze_video(self, video_path, num_samples=10, sample_method='random'):
+    def analyze_video(self, video_path, num_samples=10, sample_method='random', temporal=False, temporal_stride=1):
         """
         Analyze video quality by sampling frames.
 
@@ -213,8 +219,9 @@ class NoReferenceQualityScorer:
         print("-" * 90)
 
         frame_scores = []
+        temporal_frames = []
 
-        for frame_idx in frame_indices:
+        for idx, frame_idx in enumerate(frame_indices):
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
             ret, frame = cap.read()
 
@@ -223,6 +230,9 @@ class NoReferenceQualityScorer:
 
             timestamp = frame_idx / fps
             scores = self.score_frame(frame)
+
+            if temporal and (idx % max(1, temporal_stride) == 0):
+                temporal_frames.append(frame.copy())
 
             print(f"{frame_idx:6d} | {timestamp:7.2f} | {scores['blur_score']:6.2f} | "
                   f"{scores['block8_score']:7.2f} | {scores['noise_score']:6.2f} | "
@@ -236,6 +246,23 @@ class NoReferenceQualityScorer:
             })
 
         cap.release()
+
+        temporal_summary = self.temporal_features.score_sequence(temporal_frames) if temporal else None
+
+        if temporal_summary and temporal_summary.get('temporal_quality_score') is not None:
+            temporal_quality = temporal_summary['temporal_quality_score']
+            for s in frame_scores:
+                s['temporal_quality_score'] = temporal_quality
+                s['composite_quality_score'] = self._calculate_composite_score(
+                    s['blur_score'],
+                    s['block8_score'],
+                    s['block16_score'],
+                    s['noise_score'],
+                    s.get('brisque_score'),
+                    s.get('niqe_score'),
+                    temporal=temporal_quality,
+                )
+                s['quality_rating'] = self._get_quality_rating(s['composite_quality_score'])
 
         # Calculate video-level statistics
         if frame_scores:
@@ -251,19 +278,29 @@ class NoReferenceQualityScorer:
                 'frame_scores': frame_scores
             }
 
+            if temporal_summary:
+                video_stats['temporal_metrics'] = temporal_summary
+
             print("\n" + "="*90)
             print(f"VIDEO QUALITY SUMMARY: {os.path.basename(video_path)}")
             print("="*90)
             print(f"Average Quality Score: {video_stats['avg_quality_score']:.3f} ({video_stats['quality_rating']})")
             print(f"Score Range: {video_stats['min_quality_score']:.3f} - {video_stats['max_quality_score']:.3f}")
             print(f"Score Std Dev: {video_stats['std_quality_score']:.3f}")
+            if temporal_summary and temporal_summary.get('temporal_quality_score') is not None:
+                print("\nTemporal Metrics:")
+                print(f"  Temporal Quality Score: {temporal_summary['temporal_quality_score']:.3f} (higher is better)")
+                print(f"  Avg SSIM: {temporal_summary['avg_ssim']:.4f}")
+                print(f"  Freeze Ratio: {temporal_summary['freeze_ratio']:.3f}")
+                print(f"  Freeze Events: {temporal_summary['freeze_events']}")
+                print(f"  Avg Jitter Index: {temporal_summary['avg_jitter_index']:.3f}")
             print("="*90)
 
             return video_stats
 
         return None
 
-    def compare_videos(self, video_a_path, video_b_path, num_samples=10):
+    def compare_videos(self, video_a_path, video_b_path, num_samples=10, sample_method='random', temporal=False, temporal_stride=1):
         """
         Compare quality between two videos.
 
@@ -271,10 +308,10 @@ class NoReferenceQualityScorer:
             dict: Comparison results
         """
         print("Analyzing Video A...")
-        stats_a = self.analyze_video(video_a_path, num_samples)
+        stats_a = self.analyze_video(video_a_path, num_samples, sample_method, temporal, temporal_stride)
 
         print("\nAnalyzing Video B...")
-        stats_b = self.analyze_video(video_b_path, num_samples)
+        stats_b = self.analyze_video(video_b_path, num_samples, sample_method, temporal, temporal_stride)
 
         if not stats_a or not stats_b:
             return None
@@ -320,6 +357,10 @@ Examples:
                         help="Number of frames to sample (default: 10)")
     parser.add_argument("--method", "-m", choices=['random', 'uniform'], default='random',
                         help="Frame sampling method (default: random)")
+    parser.add_argument("--temporal", action='store_true',
+                        help="Enable temporal quality metrics (SSIM/flow/freeze)")
+    parser.add_argument("--temporal_stride", type=int, default=1,
+                        help="Use every Nth sampled frame for temporal metrics (default: 1)")
 
     args = parser.parse_args()
 
@@ -334,10 +375,23 @@ Examples:
 
     if len(args.video_paths) == 1:
         # Single video analysis
-        scorer.analyze_video(args.video_paths[0], args.samples, args.method)
+        scorer.analyze_video(
+            args.video_paths[0],
+            args.samples,
+            args.method,
+            temporal=args.temporal,
+            temporal_stride=args.temporal_stride,
+        )
     elif len(args.video_paths) == 2:
         # Video comparison
-        scorer.compare_videos(args.video_paths[0], args.video_paths[1], args.samples)
+        scorer.compare_videos(
+            args.video_paths[0],
+            args.video_paths[1],
+            args.samples,
+            args.method,
+            temporal=args.temporal,
+            temporal_stride=args.temporal_stride,
+        )
     else:
         print("Error: Please provide 1 or 2 video paths")
 

@@ -4,7 +4,7 @@
 
 - **Phase 1**: ✅ Core no-reference metrics + testing framework
 - **Phase 2**: ✅ Industry-standard metrics (BRISQUE + NIQE framework)  
-- **Phase 3**: 🔄 Temporal quality assessment
+- **Phase 3**: 🔄 Temporal quality assessment (MVP started)
 - **Phase 4**: 🎯 Deep learning-based quality prediction
 - **Phase 5**: 🎨 Production UI and batch processing
 
@@ -39,7 +39,11 @@ Now that we have successfully demonstrated the core feasibility of No-Reference 
 *Currently, the system evaluates static frames pulled from the video. It misses problems that happen over time.*
 - **Jitter and Freeze Detection**: Compare the structural similarity (SSIM) of adjacent frames. If SSIM is exactly 1.0 for too long, the video has frozen. If optical flow is wildly erratic, there is jitter.
 - **Action**: Add a `temporal_features.py` module that calculates how "smooth" the video playback is.
--**Status**: 🔄 **IN PLANNING** - Next phase after Phase 2 completion.
+- **Status**: 🔄 **MVP IMPLEMENTED (April 2026)**
+  - Added `temporal_features.py` with SSIM, optical-flow stats, freeze ratio, and jitter index
+  - Integrated temporal scoring into `NQS.py` behind `--temporal` flag
+  - Extended `generate_test_videos.py` with `--freeze` and `--jitter` modes for validation data
+  - Next: calibration on larger datasets and robustness tuning
 
 ## Phase 4: Perceptual Machine Learning (The "Gold Standard")
 *Once classical metrics are maximized, the industry standard shifts to deep learning because human perception is subjective.*

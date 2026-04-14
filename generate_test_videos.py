@@ -22,7 +22,24 @@ def apply_compression(frame, quality=10):
         return cv2.imdecode(encimg, 1)
     return frame
 
-def process_video(input_path, output_path, degradation_type, intensity=None):
+
+def apply_jitter(frame, max_shift_px=4):
+    """Apply small random x/y translation to simulate temporal jitter."""
+    h, w = frame.shape[:2]
+    dx = np.random.randint(-max_shift_px, max_shift_px + 1)
+    dy = np.random.randint(-max_shift_px, max_shift_px + 1)
+    matrix = np.float32([[1, 0, dx], [0, 1, dy]])
+    return cv2.warpAffine(frame, matrix, (w, h), borderMode=cv2.BORDER_REFLECT)
+
+def process_video(
+    input_path,
+    output_path,
+    degradation_type,
+    intensity=None,
+    freeze_every=60,
+    freeze_duration=10,
+    jitter_px=4,
+):
     """Process the video and apply the appropriate degradation to every frame."""
     cap = cv2.VideoCapture(input_path)
     if not cap.isOpened():
@@ -41,6 +58,9 @@ def process_video(input_path, output_path, degradation_type, intensity=None):
     print(f"Generating '{output_path}' ({degradation_type} effect)...")
     
     frame_idx = 0
+    freeze_ref = None
+    freeze_active_until = -1
+
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -59,6 +79,25 @@ def process_video(input_path, output_path, degradation_type, intensity=None):
         elif degradation_type == "compress":
             quality = intensity if intensity else 10
             processed = apply_compression(frame, quality)
+
+        elif degradation_type == "jitter":
+            max_shift = intensity if intensity else jitter_px
+            processed = apply_jitter(frame, max_shift)
+
+        elif degradation_type == "freeze":
+            if freeze_every <= 0:
+                freeze_every = 60
+            if freeze_duration <= 0:
+                freeze_duration = 10
+
+            if frame_idx % freeze_every == 0:
+                freeze_ref = frame.copy()
+                freeze_active_until = frame_idx + freeze_duration
+
+            if freeze_ref is not None and frame_idx < freeze_active_until:
+                processed = freeze_ref.copy()
+            else:
+                processed = frame
             
         else:
             processed = frame
@@ -82,8 +121,16 @@ def main():
     parser.add_argument("--blur", action="store_true", help="Generate a blurry version")
     parser.add_argument("--noise", action="store_true", help="Generate a noisy version")
     parser.add_argument("--compress", action="store_true", help="Generate a highly compressed (blocky) version")
+    parser.add_argument("--freeze", action="store_true", help="Generate a freeze-artifact version")
+    parser.add_argument("--jitter", action="store_true", help="Generate a jittery motion version")
     parser.add_argument("--all", action="store_true", help="Generate all three degraded versions")
     parser.add_argument("--output_dir", default=".", help="Directory to save the generated videos")
+    parser.add_argument("--freeze_every", type=int, default=60,
+                        help="Start a freeze every N frames (default: 60)")
+    parser.add_argument("--freeze_duration", type=int, default=10,
+                        help="Freeze length in frames (default: 10)")
+    parser.add_argument("--jitter_px", type=int, default=4,
+                        help="Max pixel shift for jitter mode (default: 4)")
     
     args = parser.parse_args()
     
@@ -98,6 +145,8 @@ def main():
     if args.all or args.blur: modes.append("blur")
     if args.all or args.noise: modes.append("noise")
     if args.all or args.compress: modes.append("compress")
+    if args.all or args.freeze: modes.append("freeze")
+    if args.all or args.jitter: modes.append("jitter")
     
     if not modes:
         print("Please specify at least one degradation type (--blur, --noise, --compress, or --all).")
@@ -107,7 +156,14 @@ def main():
     
     for mode in modes:
         output_path = os.path.join(args.output_dir, f"{base_name}_{mode}.mp4")
-        process_video(args.input_video, output_path, mode)
+        process_video(
+            args.input_video,
+            output_path,
+            mode,
+            freeze_every=args.freeze_every,
+            freeze_duration=args.freeze_duration,
+            jitter_px=args.jitter_px,
+        )
 
 if __name__ == "__main__":
     main()

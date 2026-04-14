@@ -6,6 +6,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [2.0.0] - 2026-04-14
+
+### Added
+- [2026-04-14] **Phase 3: Temporal Quality Assessment MVP**
+  - Created `temporal_features.py` - Temporal no-reference quality metrics
+    - Frame-to-frame SSIM similarity scoring
+    - Optical flow analysis for motion and jitter detection
+    - Freeze detection using frame similarity and motion thresholds
+    - Aggregate temporal_quality_score (0-1, higher is better)
+  - Extended `generate_test_videos.py` with temporal degradation modes
+    - `--freeze` mode: Generates synthetic freeze artifacts (periodic frame duplication)
+    - `--jitter` mode: Generates synthetic jitter (random pixel translation)
+    - Tunable parameters: `--freeze_every`, `--freeze_duration`, `--jitter_px`
+  - Added `calibrate_temporal.py` - Calibration and validation framework
+  - Added `PHASE3_COMPLETION_REPORT.md` - Detailed Phase 3 implementation report
+
+### Changed
+- [2026-04-14] Updated `NQS.py` to integrate temporal metrics
+  - New CLI flags: `--temporal` (enable temporal analysis) and `--temporal_stride` (sample stride)
+  - Temporal metrics now weighted at 20% in composite quality score
+  - New output section with frame and video-level temporal metrics
+  - Fixed sys.path handling to resolve import conflicts
+- [2026-04-14] Updated `README.md` with temporal quality assessment documentation
+  - Added `temporal_features.py` module documentation
+  - Added temporal usage examples and interpretation guide
+  - Updated Phase 3 status from "In Planning" to "MVP In Progress"
+  - Added temporal metric interpretation thresholds
+- [2026-04-14] Updated `nrvqa_roadmap.md`
+  - Marked Phase 3 as "MVP IMPLEMENTED (April 2026)"
+  - Added calibration results and recommended defaults
+
+### Fixed
+- [2026-04-14] Fixed import path conflicts between local modules and pip packages
+  - Improved sys.path handling in NQS.py to avoid BRISQUE import shadowing
+  - Ensured temporal_features.py imports resolve correctly across all entry points
+
+## [1.1.0] - 2026-03-13
+
+### Added
 - [2026-03-13] Cleaned repository structure (moved original scripts to `archive/`)
 - [2026-03-13] Added `testing_videos/` directory to store high-quality and degraded video samples
 - [2026-03-13] Added `nrvqa_roadmap.md` detailing future plans including AI and Temporal integration

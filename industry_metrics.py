@@ -159,11 +159,11 @@ class IndustryMetrics:
         self.niqe = NIQECalculator() if NIQE_AVAILABLE else None
 
         if not BRISQUE_AVAILABLE:
-            print("⚠️  BRISQUE not available. Install: pip install brisque")
+            print("Warning: BRISQUE not available. Install: pip install brisque")
         if NIQE_AVAILABLE:
-            print("✅ NIQE initialized successfully")
+            print("NIQE initialized successfully")
         else:
-            print("⚠️  NIQE not available. SciPy required: pip install scipy")
+            print("Warning: NIQE not available. SciPy required: pip install scipy")
 
     def score_frame(self, frame):
         """
