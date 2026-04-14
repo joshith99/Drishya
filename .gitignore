@@ -51,13 +51,18 @@ comparison_*.png
 # *.wmv
 # *.flv
 
-# Checkpoints and models (for future deep learning integration)
+# Checkpoints and models
 checkpoints/
 *.pth
 *.pt
+*.pkl
 *.h5
 *.ckpt
 *.pb
+*.npz
+
+# Datasets (large, download separately)
+datasets/
 
 # Logs
 logs/

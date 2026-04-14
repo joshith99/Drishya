@@ -1,5 +1,29 @@
 # Changelog
 
+All notable changes to Drishya are documented here.
+
+## [Phase 5] — 2026-04-15
+### Added
+- `phase5_app.py`: Full Streamlit production UI with three pages:
+  - **Analyze Video**: upload → MOS gauge + quality radar + per-frame table + sampled frames
+  - **Compare Videos**: side-by-side MOS gauges + radar overlay chart
+  - **Batch Process**: folder scan → results CSV download + MOS histogram
+- Dark-theme premium UI with Inter font, animated hover effects, Plotly charts
+
+## [Phase 4] — 2026-04-15
+### Added
+- `phase4_svr.py`: GPU feature extraction pipeline
+  - EfficientNet-B4 (frozen, pretrained) as backbone; 8-frame temporal sampling
+  - SVR (RBF kernel) trained on 1792-d features from 2,483 videos
+  - Val PLCC=0.526, SRCC=0.512, RMSE=0.393
+- `phase4_train.py`: End-to-end CNN fine-tuning pipeline (AdamW + AMP + grad accumulation)
+- Integrated KoNViD-150k-B dataset (1,576 videos)
+- `extract_frames.py`: parallel JPEG frame pre-extraction utility
+### Changed
+- `requirements.txt`: fully updated with all Phase 4–5 dependencies
+- `.gitignore`: added `*.pkl`, `*.npz`, `datasets/`
+- `README.md`: complete rewrite documenting all 5 phases
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
