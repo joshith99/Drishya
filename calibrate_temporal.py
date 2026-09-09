@@ -52,6 +52,13 @@ def run_nqs(video_path, samples=10):
     
     return metrics
 
+def _fmt(value, spec):
+    """Format a numeric value or return 'N/A' if it's missing/non-numeric."""
+    if isinstance(value, (int, float)):
+        return f"{value:{spec}}"
+    return "N/A"
+
+
 def main():
     videos = [
         ('testing_videos/video_small.mp4', 'Baseline (No Degradation)'),
@@ -75,12 +82,12 @@ def main():
         
         if metrics:
             results[label] = metrics
-            print(f"  Temporal Quality: {metrics.get('temporal_quality', 'N/A'):.3f}")
-            print(f"  Avg SSIM: {metrics.get('avg_ssim', 'N/A'):.4f}")
-            print(f"  Freeze Ratio: {metrics.get('freeze_ratio', 'N/A'):.3f}")
-            print(f"  Freeze Events: {metrics.get('freeze_events', 'N/A')}")
-            print(f"  Avg Jitter Index: {metrics.get('avg_jitter', 'N/A'):.3f}")
-            print(f"  Overall Quality: {metrics.get('overall_quality', 'N/A'):.3f}")
+            print(f"  Temporal Quality: {_fmt(metrics.get('temporal_quality'), '.3f')}")
+            print(f"  Avg SSIM: {_fmt(metrics.get('avg_ssim'), '.4f')}")
+            print(f"  Freeze Ratio: {_fmt(metrics.get('freeze_ratio'), '.3f')}")
+            print(f"  Freeze Events: {_fmt(metrics.get('freeze_events'), 'd')}")
+            print(f"  Avg Jitter Index: {_fmt(metrics.get('avg_jitter'), '.3f')}")
+            print(f"  Overall Quality: {_fmt(metrics.get('overall_quality'), '.3f')}")
         else:
             print(f"  ERROR: Could not extract metrics")
     
@@ -91,19 +98,20 @@ def main():
     if len(results) >= 2:
         baseline = results.get('Baseline (No Degradation)', {})
         
-        print(f"\nBaseline Temporal Quality: {baseline.get('temporal_quality', 'N/A'):.3f}")
+        print(f"\nBaseline Temporal Quality: {_fmt(baseline.get('temporal_quality'), '.3f')}")
         
         for label, metrics in results.items():
             if label == 'Baseline (No Degradation)':
                 continue
             
-            delta = metrics.get('temporal_quality', 0) - baseline.get('temporal_quality', 0)
-            pct_change = (delta / baseline.get('temporal_quality', 1)) * 100 if baseline.get('temporal_quality') else 0
+            base_q = baseline.get('temporal_quality') or 0
+            delta = (metrics.get('temporal_quality') or 0) - base_q
+            pct_change = (delta / base_q * 100) if base_q else 0
             
             print(f"\n{label}:")
-            print(f"  Temporal Quality: {metrics.get('temporal_quality', 'N/A'):.3f} (Δ {delta:+.3f}, {pct_change:+.1f}%)")
-            print(f"  SSIM: {metrics.get('avg_ssim', 'N/A'):.4f}")
-            print(f"  Jitter Index: {metrics.get('avg_jitter', 'N/A'):.3f}")
+            print(f"  Temporal Quality: {_fmt(metrics.get('temporal_quality'), '.3f')} (Δ {delta:+.3f}, {pct_change:+.1f}%)")
+            print(f"  SSIM: {_fmt(metrics.get('avg_ssim'), '.4f')}")
+            print(f"  Jitter Index: {_fmt(metrics.get('avg_jitter'), '.3f')}")
     
     print("\n" + "=" * 80)
     print("NEXT STEPS:")

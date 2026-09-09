@@ -64,6 +64,9 @@ checkpoints/
 # Datasets (large, download separately)
 datasets/
 
+# Reference papers (copyrighted publisher PDFs — keep out of the repo)
+papers/
+
 # Logs
 logs/
 *.log

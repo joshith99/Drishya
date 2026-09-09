@@ -2,6 +2,32 @@
 
 All notable changes to Drishya are documented here.
 
+## [Unreleased]
+
+### Added
+- [2026-09-09] **Maintenance & correctness pass** — see Removed/Changed below
+- [2026-08-06] **Review 1 report: base paper switched to RQ-VQA + 2024–2025 literature**
+  - `report_phase1_review1.md`: adopted **RQ-VQA** (Sun et al., arXiv:2405.08745, NTIRE 2024 winner) as the base paper; VSFA retained as a cited model
+  - Rewrote §3 base-paper comparison (RQ-VQA vs Drishya) incl. new generalization row
+  - Added recent-literature rows to §2.1 (RQ-VQA, Q-Align, FineVQ) and a 2024–2025 frontier-shift trend bullet in §2.2
+  - References renumbered 1–20 by first appearance; citations updated throughout
+  - Downloaded 7 new open-access papers into `papers/` (12_rqvqa, 13_qalign, 14_kvq, 15_ais2024, 16_lmmvqa, 17_vqa_survey, 18_finevq)
+
+### Removed
+- [2026-09-09] `brisque.py`, `compare_brisque.py` — shadowed the `brisque` pip package; functionality covered by `NQS.py`/`industry_metrics.py`
+- [2026-09-09] `archive/` (`compare_videos.py`, `sample_frames.py`) — superseded by `NQS.py`/`extract_frames.py`
+- [2026-09-09] `report1.md` — superseded by `report_phase1_review1.md`
+
+### Changed
+- [2026-09-09] `industry_metrics.py`: real NIQE via `piq` (previously an ad-hoc heuristic); removed duplicated `brisque` import-shadowing hacks
+- [2026-09-09] `NQS.py`: temporal metrics computed over a contiguous window of adjacent frames (were over sparse, far-apart samples); new `--seed` flag; removed dead BRISQUE import code
+- [2026-09-09] `phase4_svr.py`: SVR hyperparams via k-fold CV on train only; metrics on a held-out test set; frozen backbone weights saved with checkpoint; dropped unused `optuna`
+- [2026-09-09] `phase5_app.py`: loads saved backbone weights instead of re-downloading ImageNet pretrained
+- [2026-09-09] `phase4_train.py`: drops undecodable videos at dataset build time (previously trained on zero-frame tensors with real MOS labels)
+- [2026-09-09] `calibrate_temporal.py`: no longer crashes when a metric is missing
+- [2026-09-09] `requirements.txt`: added PyWavelets, matplotlib, requests; `piq` now used for NIQE
+- [2026-09-09] `.gitignore`: ignore `papers/` (copyrighted publisher PDFs)
+
 ## [Phase 5] — 2026-04-15
 ### Added
 - `phase5_app.py`: Full Streamlit production UI with three pages:
@@ -28,8 +54,6 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased]
 
 ## [2.0.0] - 2026-04-14
 

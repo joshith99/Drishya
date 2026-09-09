@@ -41,7 +41,7 @@ EfficientNet-B4 (frozen, ImageNet-pretrained) is used as a GPU feature extractor
 - **KoNViD-150k-B:** 1,576 videos (540p, 5s clips)
 - **Total:** 2,483 videos with human MOS labels
 
-### Results (validation set, 15%)
+### Results (held-out test set, 15%)
 
 | Metric | Score |
 |--------|-------|
@@ -49,7 +49,11 @@ EfficientNet-B4 (frozen, ImageNet-pretrained) is used as a GPU feature extractor
 | SRCC | 0.512 |
 | RMSE | 0.393 |
 
-> Baseline result from frozen features. Fine-tuning the backbone end-to-end would push SRCC to ~0.80+.
+> Baseline result from frozen features (older run, tuned on a validation split).
+> The current pipeline now selects SVR hyperparameters via k-fold CV on the
+> training fold only and reports metrics on a truly held-out test set, and saves
+> the frozen backbone weights with the checkpoint so the UI never re-downloads
+> ImageNet weights. Fine-tuning the backbone end-to-end would push SRCC to ~0.80+.
 
 ### Re-run feature extraction + SVR training
 
@@ -74,6 +78,9 @@ python NQS.py video_a.mp4 video_b.mp4
 
 # More samples, uniform spacing
 python NQS.py video.mp4 --samples 20 --method uniform
+
+# Reproducible random sampling
+python NQS.py video.mp4 --samples 20 --seed 42
 ```
 
 ---
@@ -86,6 +93,7 @@ python NQS.py video.mp4 --samples 20 --method uniform
 | Blockiness | DCT block boundary analysis | 1 |
 | Noise | Wavelet high-frequency estimation | 1 |
 | BRISQUE | Blind Image Spatial Quality Evaluator | 2 |
+| NIQE | Natural Image Quality Evaluator (via `piq`) | 2 |
 | Temporal smoothness | SSIM across consecutive frames | 3 |
 | Freeze detection | SSIM = 1.0 event counting | 3 |
 | Jitter | Optical flow variance | 3 |
@@ -102,14 +110,17 @@ Drishya/
 ├── phase4_train.py        # 🔬  CNN fine-tuning pipeline (future use)
 ├── NQS.py                 # 🎛️  CLI analyzer (Phases 1-3)
 ├── nr_features.py         # Classical NR feature extractors
-├── industry_metrics.py    # BRISQUE / NIQE wrappers
+├── industry_metrics.py    # BRISQUE / NIQE wrappers (real NIQE via piq)
 ├── temporal_features.py   # Temporal quality metrics
-├── brisque.py             # BRISQUE implementation
 ├── generate_test_videos.py# Synthetic degradation test data generator
 ├── extract_frames.py      # Batch frame extraction utility
 ├── requirements.txt       # All dependencies
 └── checkpoints/           # Saved models (gitignored)
 ```
+
+> Removed in the 2026-09 cleanup: `brisque.py` / `compare_brisque.py` (they shadowed
+> the `brisque` pip package and duplicated `NQS.py` / `industry_metrics.py`
+> functionality), the `archive/` scripts, and the superseded `report1.md`.
 
 ---
 

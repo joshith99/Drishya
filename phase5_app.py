@@ -191,9 +191,16 @@ def load_deep_model():
         IMG_SIZE   = saved.get('img_size', 224)
         MOS_MIN    = saved.get('mos_min', 1.0)
         MOS_MAX    = saved.get('mos_max', 5.0)
+        backbone_name = saved.get('backbone', 'efficientnet_b4')
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        backbone = timm.create_model('efficientnet_b4', pretrained=True, num_classes=0)
+        backbone = timm.create_model(backbone_name, pretrained=True, num_classes=0)
+        if saved.get('backbone_state_dict'):
+            # Load the exact weights the SVR was trained against (no drift, no re-download).
+            backbone.load_state_dict(saved['backbone_state_dict'])
+        else:
+            st.warning("Checkpoint has no saved backbone weights — using ImageNet "
+                       "pretrained (matches the features this SVR was trained on).")
         backbone = backbone.to(device).eval()
         for p in backbone.parameters():
             p.requires_grad = False

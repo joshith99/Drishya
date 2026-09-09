@@ -3,15 +3,17 @@ Phase 4: Deep Feature Extraction + SVR for MOS Prediction
 Steps:
   1. Load pretrained EfficientNet-B4 (frozen) as GPU feature extractor
   2. For each video: sample 8 frames → GPU backbone → mean-pool → 1792-d feature
-  3. Train SVR (RBF kernel) on features vs MOS
-  4. Evaluate PLCC / SRCC / RMSE on held-out val set
-  5. Save model as pickle + also export to ONNX if possible
+  3. Grid-search SVR (RBF kernel) via k-fold CV on the training fold
+  4. Evaluate PLCC / SRCC / RMSE on a held-out test set (never touched during tuning)
+  5. Save model (SVR pipeline + frozen backbone weights) as pickle
 
 Why this approach:
   - Zero backprop = huge GPU batches, very fast
   - No DataLoader worker fork/spawn issues (single-threaded IO)
   - Deep features >> handcrafted features for VQA quality
   - SVR trains in seconds, not hours
+  - Hyperparameters are selected by cross-validation only, so the final
+    reported metrics come from a genuinely held-out split.
 """
 
 import os, sys, json, time, pickle, warnings
@@ -186,15 +188,21 @@ def extract_features(records, device):
 
 
 # ─── SVR training ────────────────────────────────────────────
-def train_svr(X_tr, y_tr, X_val, y_val):
+def train_svr(X_tr, y_tr, n_splits=3):
+    """
+    Grid-search SVR hyperparameters using k-fold CV on the training fold only.
+
+    This keeps the held-out test set completely untouched during model
+    selection, avoiding optimistic/overfit performance estimates.
+    """
     from sklearn.svm import SVR
     from sklearn.preprocessing import StandardScaler
     from sklearn.pipeline import Pipeline
-    import optuna
-    optuna.logging.set_verbosity(optuna.logging.WARNING)
+    from sklearn.model_selection import KFold
 
-    print("\n[3] Grid search for best SVR hyperparams (3-fold CV on train)...")
-    best_srcc, best_model = -1, None
+    print(f"\n[3] Grid search for best SVR hyperparams ({n_splits}-fold CV on train)...")
+    kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
+    best_srcc, best_model, best_params = -1, None, None
 
     # Quick grid search
     for C in [0.1, 1.0, 10.0, 100.0]:
@@ -203,16 +211,21 @@ def train_svr(X_tr, y_tr, X_val, y_val):
                 ('scaler', StandardScaler()),
                 ('svr', SVR(kernel='rbf', C=C, gamma=gamma, epsilon=0.05))
             ])
-            pipe.fit(X_tr, y_tr)
-            pred_val = pipe.predict(X_val)
-            srcc, _ = stats.spearmanr(pred_val, y_val)
-            if srcc > best_srcc:
-                best_srcc = srcc
+            cv_srcc = []
+            for tr_idx, va_idx in kf.split(X_tr):
+                pipe.fit(X_tr[tr_idx], y_tr[tr_idx])
+                pred = pipe.predict(X_tr[va_idx])
+                srcc, _ = stats.spearmanr(pred, y_tr[va_idx])
+                cv_srcc.append(srcc)
+            mean_srcc = float(np.mean(cv_srcc))
+            if mean_srcc > best_srcc:
+                best_srcc = mean_srcc
                 best_model = pipe
                 best_params = {'C': C, 'gamma': gamma}
 
-    print(f"  Best params: {best_params} | Val SRCC={best_srcc:.4f}")
-    return best_model
+    print(f"  Best params: {best_params} | CV SRCC={best_srcc:.4f}")
+    best_model.fit(X_tr, y_tr)  # retrain on the full training fold
+    return best_model, best_params
 
 
 def compute_metrics(preds, targets):
@@ -245,39 +258,45 @@ def main():
     print("\n[2] Extracting deep GPU features...")
     X, y, paths = extract_features(records, device)
 
-    # 3. Train/val split
-    X_tr, X_val, y_tr, y_val = train_test_split(
+    # 3. Split: hold out a 15% test set; hyperparams tuned via CV on train only
+    X_tr, X_test, y_tr, y_test = train_test_split(
         X, y, test_size=0.15, random_state=42)
-    print(f"\n  Train: {len(X_tr)} | Val: {len(X_val)}")
+    print(f"\n  Train: {len(X_tr)} | Test (held out): {len(X_test)}")
 
-    # 4. Train SVR
+    # 4. Train SVR (hyperparams chosen by k-fold CV on the training fold)
     print("\n[3] Training SVR...")
     t0 = time.time()
-    model = train_svr(X_tr, y_tr, X_val, y_val)
+    model, best_params = train_svr(X_tr, y_tr)
     print(f"  SVR trained in {time.time()-t0:.1f}s")
 
-    # 5. Final evaluation
+    # 5. Final evaluation on the held-out test set
     print("\n[4] Final evaluation...")
-    pred_tr  = model.predict(X_tr)
-    pred_val = model.predict(X_val)
+    pred_tr    = model.predict(X_tr)
+    pred_test  = model.predict(X_test)
 
     tr_plcc, tr_srcc, tr_rmse  = compute_metrics(pred_tr, y_tr)
-    val_plcc, val_srcc, val_rmse = compute_metrics(pred_val, y_val)
+    te_plcc, te_srcc, te_rmse = compute_metrics(pred_test, y_test)
 
     print(f"  Train | PLCC={tr_plcc:.4f}  SRCC={tr_srcc:.4f}  RMSE={tr_rmse:.4f}")
-    print(f"  Val   | PLCC={val_plcc:.4f}  SRCC={val_srcc:.4f}  RMSE={val_rmse:.4f}")
+    print(f"  Test  | PLCC={te_plcc:.4f}  SRCC={te_srcc:.4f}  RMSE={te_rmse:.4f}")
 
-    # 6. Save model
+    # 6. Save model (SVR pipeline + frozen backbone weights)
+    print("\n  Capturing frozen backbone weights for offline inference...")
+    backbone, feat_dim = build_backbone(device)
+    backbone_state = {k: v.detach().cpu() for k, v in backbone.state_dict().items()}
+
     run_id = datetime.now().strftime('%Y%m%d_%H%M%S')
     ckpt_path = CKPT_DIR / f'svr_deep_{run_id}.pkl'
     results = {
         'model': model,
         'backbone': BACKBONE,
+        'backbone_state_dict': backbone_state,
         'num_frames': NUM_FRAMES,
         'img_size': IMG_SIZE,
-        'val_plcc': float(val_plcc),
-        'val_srcc': float(val_srcc),
-        'val_rmse': float(val_rmse),
+        'test_plcc': float(te_plcc),
+        'test_srcc': float(te_srcc),
+        'test_rmse': float(te_rmse),
+        'best_params': best_params,
         'mos_min': MOS_MIN,
         'mos_max': MOS_MAX,
     }
@@ -285,13 +304,13 @@ def main():
         pickle.dump(results, f)
 
     # Also save a JSON summary
-    summary = {k: v for k, v in results.items() if k != 'model'}
+    summary = {k: v for k, v in results.items() if k not in ('model', 'backbone_state_dict')}
     with open(CKPT_DIR / f'svr_results_{run_id}.json', 'w') as f:
         json.dump(summary, f, indent=2)
 
     print(f"\n  ✅ Model saved to {ckpt_path}")
     print(f"\n{'='*60}")
-    print(f"  FINAL: Val PLCC={val_plcc:.4f}  SRCC={val_srcc:.4f}  RMSE={val_rmse:.4f}")
+    print(f"  FINAL: Test PLCC={te_plcc:.4f}  SRCC={te_srcc:.4f}  RMSE={te_rmse:.4f}")
     print(f"{'='*60}\n")
 
 

@@ -197,10 +197,18 @@ def sample_frames(video_path, num_frames):
 
 
 class VideoQualityDataset(Dataset):
-    def __init__(self, records, num_frames=16, img_size=224, augment=False):
+    def __init__(self, records, num_frames=8, img_size=224, augment=False):
         self.records = records
         self.num_frames = num_frames
         self.augment = augment
+
+        # Drop videos that cannot be decoded so we never train on zero tensors
+        # that carry a real MOS label (harmful gradient signal).
+        readable = [rec for rec in self.records if self._can_read(rec['video'])]
+        dropped = len(self.records) - len(readable)
+        if dropped:
+            print(f"  Dropped {dropped} unreadable video(s) from dataset")
+        self.records = readable
 
         normalize = transforms.Normalize(
             mean=[0.485, 0.456, 0.406],
@@ -223,6 +231,19 @@ class VideoQualityDataset(Dataset):
                 normalize,
             ])
 
+    @staticmethod
+    def _can_read(video_path):
+        """Cheap decode sanity check: open the video and read one frame."""
+        try:
+            import decord as _decord  # lazy import: safe in forked/spawned workers
+            vr = _decord.VideoReader(str(video_path), num_threads=1, ctx=_decord.cpu(0))
+            if len(vr) <= 0:
+                return False
+            vr.get_batch([0])
+            return True
+        except Exception:
+            return False
+
     def __len__(self):
         return len(self.records)
 
@@ -231,9 +252,10 @@ class VideoQualityDataset(Dataset):
         frames = sample_frames(rec['video'], self.num_frames)
 
         if frames is None:
-            # Return zeros if video is unreadable
+            # Should not happen after the readability filter in __init__;
+            # return neutral inputs as a last-resort safety net.
             dummy = torch.zeros(self.num_frames, 3, CFG['img_size'], CFG['img_size'])
-            return dummy, torch.tensor(rec['mos'], dtype=torch.float32)
+            return dummy, torch.tensor(0.5, dtype=torch.float32)
 
         frame_tensors = torch.stack([self.transform(f) for f in frames])
         mos = torch.tensor(rec['mos'], dtype=torch.float32)
