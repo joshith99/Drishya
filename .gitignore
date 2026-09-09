@@ -7,6 +7,7 @@ __pycache__/
 
 # Virtual Environments
 venv/
+.venv/
 myenv/
 env/
 ENV/
@@ -60,6 +61,8 @@ checkpoints/
 *.ckpt
 *.pb
 *.npz
+# NIQE natural-scene model (official parameters, small and tracked)
+!niqe_pris_params.npz
 
 # Datasets (large, download separately)
 datasets/

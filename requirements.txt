@@ -24,7 +24,8 @@ plotly>=5.18
 
 # ── Classical NR metrics ──────────────────────────────────
 brisque>=0.0.15
-piq>=0.8                # real NIQE implementation
+# NIQE is implemented in industry_metrics.py (self-contained, scipy + scikit-image
+# via scipy) using the official model parameters in niqe_pris_params.npz.
 
 # ── Data / annotation handling ────────────────────────────
 openpyxl>=3.1

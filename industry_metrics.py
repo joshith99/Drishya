@@ -51,20 +51,111 @@ if BRISQUE_AVAILABLE:
     BRISQUE.scale_features = _fixed_scale_features
 
 
-# ── NIQE (via `piq`) ──────────────────────────────────────────
-try:
-    import torch
-    from piq import niqe as _piq_niqe
-    PIQ_AVAILABLE = True
-except ImportError:
-    PIQ_AVAILABLE = False
+# ── NIQE (self-contained, scipy) ─────────────────────────────
+# The `piq` and `brisque` packages no longer ship NIQE (piq dropped it; the
+# `brisque` package has BRISQUE only), so we implement NIQE directly from the
+# algorithm in Mittal et al., "Making a 'Completely Blind' Image Quality
+# Analyzer" (IEEE SPL 2013), using the official natural-scene model parameters
+# shipped in `niqe_pris_params.npz` (same parameters used by BasicSR/EDVR).
+import math
+from pathlib import Path
 
-NIQE_AVAILABLE = PIQ_AVAILABLE
+import scipy
+from scipy.ndimage import convolve
+from scipy.special import gamma as _gamma
+
+_NIQE_PARAMS_PATH = Path(__file__).resolve().parent / 'niqe_pris_params.npz'
+
+try:
+    _niqe_params = np.load(str(_NIQE_PARAMS_PATH))
+    _MU_PRIS = np.asarray(_niqe_params['mu_pris_param'], dtype=np.float64)
+    _COV_PRIS = np.asarray(_niqe_params['cov_pris_param'], dtype=np.float64)
+    _GAUSS_WIN = np.asarray(_niqe_params['gaussian_window'], dtype=np.float64)
+    NIQE_AVAILABLE = True
+except (IOError, OSError, KeyError):
+    _MU_PRIS = _COV_PRIS = _GAUSS_WIN = None
+    NIQE_AVAILABLE = False
+
+# GGD/AGGD shape-parameter lookup table (gamma values, 0.2 .. 10.0)
+_GAM = np.arange(0.2, 10.001, 0.001)
+_GAM_RECIP = np.reciprocal(_GAM)
+_R_GAM = np.square(_gamma(_GAM_RECIP * 2)) / (
+    _gamma(_GAM_RECIP) * _gamma(_GAM_RECIP * 3))
+
+
+def _estimate_aggd_param(block):
+    """Estimate AGGD (Asymmetric Generalized Gaussian Distribution) parameters."""
+    block = block.flatten()
+    left_std = np.sqrt(np.mean(block[block < 0] ** 2))
+    right_std = np.sqrt(np.mean(block[block > 0] ** 2))
+    gammahat = left_std / right_std
+    rhat = (np.mean(np.abs(block))) ** 2 / np.mean(block ** 2)
+    rhatnorm = (rhat * (gammahat ** 3 + 1) * (gammahat + 1)) / ((gammahat ** 2 + 1) ** 2)
+    alpha = _GAM[np.argmin((_R_GAM - rhatnorm) ** 2)]
+    beta_l = left_std * np.sqrt(_gamma(1 / alpha) / _gamma(3 / alpha))
+    beta_r = right_std * np.sqrt(_gamma(1 / alpha) / _gamma(3 / alpha))
+    return alpha, beta_l, beta_r
+
+
+def _compute_feature(block):
+    """Compute the 18 NIQE features for one block (Eq. 7-9 of the paper)."""
+    feat = []
+    alpha, beta_l, beta_r = _estimate_aggd_param(block)
+    feat.extend([alpha, (beta_l + beta_r) / 2])
+
+    shifts = [[0, 1], [1, 0], [1, 1], [1, -1]]
+    for shift in shifts:
+        shifted = np.roll(block, shift, axis=(0, 1))
+        alpha, beta_l, beta_r = _estimate_aggd_param(block * shifted)
+        mean = (beta_r - beta_l) * (_gamma(2 / alpha) / _gamma(1 / alpha))
+        feat.extend([alpha, mean, beta_l, beta_r])
+    return feat
+
+
+def _niqe_score(gray, mu_pris, cov_pris, gaussian_window, block_size=96):
+    """Full NIQE on a grayscale image [0,255] (adapted from BasicSR/EDVR)."""
+    h, w = gray.shape
+    if h < block_size or w < block_size:
+        return None
+    num_block_h = math.floor(h / block_size)
+    num_block_w = math.floor(w / block_size)
+    img = gray[0:num_block_h * block_size, 0:num_block_w * block_size]
+
+    distparam = []
+    for scale in (1, 2):
+        mu = convolve(img, gaussian_window, mode='nearest')
+        sigma = np.sqrt(np.abs(convolve(np.square(img), gaussian_window, mode='nearest') - np.square(mu)))
+        img_normalized = (img - mu) / (sigma + 1)
+
+        feat = []
+        for idx_w in range(num_block_w):
+            for idx_h in range(num_block_h):
+                block = img_normalized[
+                    idx_h * block_size // scale:(idx_h + 1) * block_size // scale,
+                    idx_w * block_size // scale:(idx_w + 1) * block_size // scale,
+                ]
+                feat.append(_compute_feature(block))
+        distparam.append(np.array(feat))
+
+        if scale == 1:
+            h, w = img.shape
+            img = cv2.resize(img / 255.0, (w // 2, h // 2),
+                             interpolation=cv2.INTER_LINEAR) * 255.0
+
+    distparam = np.concatenate(distparam, axis=1)
+    mu_dist = np.nanmean(distparam, axis=0)
+    dist_no_nan = distparam[~np.isnan(distparam).any(axis=1)]
+    cov_dist = np.cov(dist_no_nan, rowvar=False)
+
+    invcov = np.linalg.pinv((cov_pris + cov_dist) / 2)
+    quality = np.sqrt(np.matmul(
+        np.matmul((mu_pris - mu_dist), invcov), np.transpose((mu_pris - mu_dist))))
+    return float(np.squeeze(quality))
 
 
 class NIQECalculator:
     """
-    Natural Image Quality Evaluator (NIQE) - wrapper around `piq.niqe`.
+    Natural Image Quality Evaluator (NIQE) - self-contained implementation.
 
     Opinion-unaware metric built from Natural Scene Statistics of local patches
     compared against a multivariate Gaussian model of natural images.
@@ -73,7 +164,7 @@ class NIQECalculator:
 
     def compute_niqe_score(self, frame):
         """
-        Compute the real NIQE score for a frame.
+        Compute the NIQE score for a frame.
 
         Args:
             frame: Input image (BGR or grayscale, numpy array [0-255])
@@ -81,19 +172,15 @@ class NIQECalculator:
         Returns:
             float: NIQE score (lower is better), or None if unavailable/error.
         """
-        if not PIQ_AVAILABLE:
+        if not NIQE_AVAILABLE:
             return None
         try:
-            if len(frame.shape) == 3 and frame.shape[2] == 3:
-                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            if len(frame.shape) == 3:
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             else:
-                rgb = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-
-            # piq expects float tensors in [0, data_range]
-            t = torch.from_numpy(rgb.astype(np.float32)).permute(2, 0, 1).unsqueeze(0)
-            with torch.no_grad():
-                score = _piq_niqe(t, data_range=1.0)
-            return float(score)
+                gray = frame
+            img = np.round(gray.astype(np.float64))
+            return _niqe_score(img, _MU_PRIS, _COV_PRIS, _GAUSS_WIN)
         except Exception as e:
             print(f"NIQE computation error: {e}")
             return None
@@ -148,10 +235,10 @@ class IndustryMetrics:
             except Exception as e:
                 print(f"BRISQUE score failed: {e}")
 
-        # NIQE scoring
+        # NIQE scoring (original BGR frame — cvtColor to gray expects BGR)
         if self.niqe:
             try:
-                niqe_val = self.niqe.compute_niqe_score(rgb_frame)
+                niqe_val = self.niqe.compute_niqe_score(frame)
                 if niqe_val is not None:
                     scores['niqe_score'] = niqe_val
                     scores['available_metrics'].append('niqe')

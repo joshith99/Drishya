@@ -93,7 +93,7 @@ python NQS.py video.mp4 --samples 20 --seed 42
 | Blockiness | DCT block boundary analysis | 1 |
 | Noise | Wavelet high-frequency estimation | 1 |
 | BRISQUE | Blind Image Spatial Quality Evaluator | 2 |
-| NIQE | Natural Image Quality Evaluator (via `piq`) | 2 |
+| NIQE | Natural Image Quality Evaluator (self-contained, scipy) | 2 |
 | Temporal smoothness | SSIM across consecutive frames | 3 |
 | Freeze detection | SSIM = 1.0 event counting | 3 |
 | Jitter | Optical flow variance | 3 |
@@ -110,7 +110,8 @@ Drishya/
 ├── phase4_train.py        # 🔬  CNN fine-tuning pipeline (future use)
 ├── NQS.py                 # 🎛️  CLI analyzer (Phases 1-3)
 ├── nr_features.py         # Classical NR feature extractors
-├── industry_metrics.py    # BRISQUE / NIQE wrappers (real NIQE via piq)
+├── industry_metrics.py    # BRISQUE / NIQE wrappers (self-contained NIQE)
+├── niqe_pris_params.npz   # Official NIQE natural-scene model parameters
 ├── temporal_features.py   # Temporal quality metrics
 ├── generate_test_videos.py# Synthetic degradation test data generator
 ├── extract_frames.py      # Batch frame extraction utility

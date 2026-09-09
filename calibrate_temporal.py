@@ -5,11 +5,12 @@ import subprocess
 import json
 import re
 import os
+import sys
 
 def run_nqs(video_path, samples=10):
     """Run NQS and extract temporal metrics."""
     result = subprocess.run(
-        ['python', 'NQS.py', video_path, '--samples', str(samples), '--temporal'],
+        [sys.executable, 'NQS.py', video_path, '--samples', str(samples), '--temporal'],
         capture_output=True,
         text=True,
         cwd=os.getcwd()

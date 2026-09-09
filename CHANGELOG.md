@@ -27,6 +27,8 @@ All notable changes to Drishya are documented here.
 - [2026-09-09] `calibrate_temporal.py`: no longer crashes when a metric is missing
 - [2026-09-09] `requirements.txt`: added PyWavelets, matplotlib, requests; `piq` now used for NIQE
 - [2026-09-09] `.gitignore`: ignore `papers/` (copyrighted publisher PDFs)
+- [2026-09-10] `industry_metrics.py`: NIQE is now a **self-contained scipy implementation** (`piq` ships no NIQE in 0.7/0.8, so the earlier `piq`-based NIQE silently disabled itself); uses the official model parameters in a new tracked `niqe_pris_params.npz`
+- [2026-09-10] `requirements.txt`: dropped `piq` (no longer needed); `README.md`: NIQE row/structure updated
 
 ## [Phase 5] — 2026-04-15
 ### Added
