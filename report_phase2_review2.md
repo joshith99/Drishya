@@ -187,7 +187,12 @@ Real measurements on `testing_videos/video_small.mp4` (300 frames, 30 fps, stati
 ### 5.5 Deployment smoke tests
 
 - `phase4_train.py` imports cleanly under torch/timm; `phase4_svr.py`/`phase4_train.py` compile.
-- Streamlit app (`phase5_app.py`) **boots successfully** (headless server up, alive after 40 s); classical scorer loads; deep-MOS correctly reports "unavailable" when no checkpoint is present.
+- Streamlit app (`phase5_app.py`) **boots successfully** (headless server up, alive after 45 s); classical scorer loads.
+- **Deep MOS verified working**: the trained Phase-4 checkpoint
+  (`checkpoints/svr_deep_20260414_192956.pkl`, PLCC 0.526 / SRCC 0.512 / RMSE 0.393) was restored
+  and loaded by the UI. Real predictions on the bundled test clips: baseline **MOS 3.48** vs
+  blur 3.44 / noise 3.47 / compress 3.44 — correctly ordered (baseline ≥ degraded), though the
+  RBF-SVR is mean-regressed so the spread is small.
 - Environment: Windows, CPU, Python 3.12 venv (`requirements.txt`), torch 2.14 CPU, opencv 5.0.
 
 ### 5.6 Limitations
@@ -257,9 +262,10 @@ streamlit run phase5_app.py
 
 ## Appendix B — Files changed in this Phase
 
-- `phase4_svr.py` — leak-free SVR grid search; held-out test reporting; backbone weights saved with checkpoint.
-- `phase4_train.py` — drops undecodable videos instead of training on zero tensors.
+- `phase4_svr.py` — leak-free SVR grid search; held-out test reporting; backbone weights saved with checkpoint; **fully portable** (configurable paths via CLI/`DRISHYA_*` env vars, KoNViD-1k auto-loader, `--limit`).
+- `phase4_train.py` — drops undecodable videos instead of training on zero tensors; configurable paths.
 - `industry_metrics.py` — real, self-contained NIQE (scipy) + cleaned BRISQUE import; `niqe_pris_params.npz` (official NIQE model).
 - `NQS.py` — consecutive-frame temporal scoring; `--seed` reproducibility.
 - `calibrate_temporal.py` — uses the current interpreter; robust to missing metrics.
+- `checkpoints/svr_deep_*.pkl` — trained Phase-4 model (gitignored), restored & verified in the UI.
 - `requirements.txt`, `.gitignore`, `README.md`, `CHANGELOG.md` — updated for the above.

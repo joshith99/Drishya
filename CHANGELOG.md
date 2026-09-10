@@ -29,6 +29,9 @@ All notable changes to Drishya are documented here.
 - [2026-09-09] `.gitignore`: ignore `papers/` (copyrighted publisher PDFs)
 - [2026-09-10] `industry_metrics.py`: NIQE is now a **self-contained scipy implementation** (`piq` ships no NIQE in 0.7/0.8, so the earlier `piq`-based NIQE silently disabled itself); uses the official model parameters in a new tracked `niqe_pris_params.npz`
 - [2026-09-10] `requirements.txt`: dropped `piq` (no longer needed); `README.md`: NIQE row/structure updated
+- [2026-09-10] `phase4_svr.py`: made fully portable — configurable data/checkpoint/cache paths (CLI args or `DRISHYA_*` env vars), KoNViD-1k metadata auto-loader, `--limit` for quick CPU runs
+- [2026-09-10] `phase4_train.py`: dataset/checkpoint/log paths configurable via env vars
+- [2026-09-10] **Trained Phase-4 checkpoint restored** (`checkpoints/svr_deep_20260414_192956.pkl`, PLCC 0.526 / SRCC 0.512 / RMSE 0.393) — verified end-to-end: real MOS predictions on test clips (baseline 3.48 vs 3.44–3.47 degraded) and the Phase-5 UI loads it successfully
 
 ## [Phase 5] — 2026-04-15
 ### Added

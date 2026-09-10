@@ -55,11 +55,23 @@ EfficientNet-B4 (frozen, ImageNet-pretrained) is used as a GPU feature extractor
 > the frozen backbone weights with the checkpoint so the UI never re-downloads
 > ImageNet weights. Fine-tuning the backbone end-to-end would push SRCC to ~0.80+.
 
+### Trained model (Phase 5 deep MOS)
+
+The trained model ships in `checkpoints/svr_deep_*.pkl` (gitignored). When present,
+the Phase 5 UI loads it and shows real MOS predictions; verified on the bundled
+test clips (baseline MOS 3.48 vs 3.44–3.47 for blur/noise/compress). If your
+checkpoint was produced by an older run without saved backbone weights, the UI
+falls back to ImageNet-pretrained weights (identical to training-time features).
+
 ### Re-run feature extraction + SVR training
 
+Paths are configurable via CLI args or `DRISHYA_DATA_ROOT` / `DRISHYA_CKPT_DIR` /
+`DRISHYA_FEAT_CACHE` env vars (no hardcoded `/workspace` paths).
+
 ```bash
-# Requires datasets on disk (see Datasets section)
-python phase4_svr.py
+# KoNViD-1k layout (see Datasets section)
+python phase4_svr.py --data-root datasets --limit 250   # quick CPU run
+python phase4_svr.py --data-root datasets               # full run
 ```
 
 ---
@@ -132,10 +144,13 @@ To re-train Phase 4, you need:
 | Dataset | URL | Notes |
 |---------|-----|-------|
 | YouTube-UGC | [media.withyoutube.com](https://media.withyoutube.com/) | Download videos + MOS xlsx |
+| KoNViD-1k | [database.mmsp-kn.de](http://database.mmsp-kn.de/konvid-1k-database.html) | 2.3 GB zip + metadata (MOS 1–5, public) |
 | KoNViD-150k-B | [qualinet.eu](http://database.mmsp-kn.de/) | ~1.9 GB ZIP |
 | LIVE-VQC | [utexas.edu](https://live.ece.utexas.edu/research/LIVEVQC/) | Access request required |
 
-Place extracted datasets under `datasets/` (gitignored).
+Place extracted datasets under `datasets/` (gitignored). Layout expected by
+`phase4_svr.py`: `datasets/konvid1k/{videos, KoNViD-1k_metadata.csv}`
+(videos + metadata csv) and/or `datasets/youtube_ugc/` (videos + MOS xlsx).
 
 ---
 

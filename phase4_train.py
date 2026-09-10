@@ -49,14 +49,19 @@ CFG = {
     'clip_grad': 1.0,
     'mos_min': 1.0,
     'mos_max': 5.0,
-    # Paths
-    'ugc_dir': '/workspace/datasets/youtube_ugc',
-    'ugc_mos': '/workspace/datasets/youtube_ugc/MOS_for_YouTube_UGC_dataset.xlsx',
-    'konvid_dir': '/workspace/datasets/konvid_150k_b',
-    'konvid_scores': '/workspace/datasets/konvid_150k_b/k150kb_scores.csv',
-    'livevqc_dir': '/workspace/datasets/live_vqc',
-    'checkpoint_dir': '/workspace/checkpoints',
-    'log_dir': '/workspace/logs',
+    # Paths (configurable via env: DRISHYA_DATA_ROOT / DRISHYA_CKPT_DIR / DRISHYA_LOG_DIR)
+    'data_root': os.environ.get('DRISHYA_DATA_ROOT', 'datasets'),
+    'ckpt_root': os.environ.get('DRISHYA_CKPT_DIR', 'checkpoints'),
+    'log_root': os.environ.get('DRISHYA_LOG_DIR', 'logs'),
+    'ugc_dir': os.path.join(os.environ.get('DRISHYA_DATA_ROOT', 'datasets'), 'youtube_ugc'),
+    'ugc_mos': os.path.join(os.environ.get('DRISHYA_DATA_ROOT', 'datasets'),
+                            'youtube_ugc', 'MOS_for_YouTube_UGC_dataset.xlsx'),
+    'konvid_dir': os.path.join(os.environ.get('DRISHYA_DATA_ROOT', 'datasets'), 'konvid1k'),
+    'konvid_scores': os.path.join(os.environ.get('DRISHYA_DATA_ROOT', 'datasets'),
+                                  'konvid1k', 'k150kb_scores.csv'),
+    'livevqc_dir': os.path.join(os.environ.get('DRISHYA_DATA_ROOT', 'datasets'), 'live_vqc'),
+    'checkpoint_dir': os.environ.get('DRISHYA_CKPT_DIR', 'checkpoints'),
+    'log_dir': os.environ.get('DRISHYA_LOG_DIR', 'logs'),
 }
 
 
