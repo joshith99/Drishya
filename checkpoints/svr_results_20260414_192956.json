@@ -1,0 +1,10 @@
+{
+  "backbone": "efficientnet_b4",
+  "num_frames": 8,
+  "img_size": 224,
+  "val_plcc": 0.5260276867171549,
+  "val_srcc": 0.5120790705045128,
+  "val_rmse": 0.3928939815527407,
+  "mos_min": 1.0,
+  "mos_max": 5.0
+}

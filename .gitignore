@@ -53,14 +53,7 @@ comparison_*.png
 # *.flv
 
 # Checkpoints and models
-checkpoints/
-*.pth
-*.pt
-*.pkl
-*.h5
-*.ckpt
-*.pb
-*.npz
+
 # NIQE natural-scene model (official parameters, small and tracked)
 !niqe_pris_params.npz
 
