@@ -1,0 +1,80 @@
+[
+  {
+    "file": "video_small.mp4",
+    "path": "testing_videos\\video_small.mp4",
+    "mos_predicted": 3.48,
+    "mos_rating": "Good",
+    "avg_quality": 0.7708,
+    "quality_rating": "Good",
+    "frames_analyzed": 8,
+    "temporal_score": 0.5518433404771059,
+    "avg_ssim": 0.9149948188236782,
+    "freeze_ratio": 1.0,
+    "jitter_index": 1.063241956963684
+  },
+  {
+    "file": "video_small_blur.mp4",
+    "path": "testing_videos\\video_small_blur.mp4",
+    "mos_predicted": 3.44,
+    "mos_rating": "Good",
+    "avg_quality": 0.6178,
+    "quality_rating": "Good",
+    "frames_analyzed": 8,
+    "temporal_score": 0.597256828650675,
+    "avg_ssim": 0.9903272560664585,
+    "freeze_ratio": 1.0,
+    "jitter_index": 1.0480287634134364
+  },
+  {
+    "file": "video_small_noise.mp4",
+    "path": "testing_videos\\video_small_noise.mp4",
+    "mos_predicted": 3.47,
+    "mos_rating": "Good",
+    "avg_quality": 0.6523,
+    "quality_rating": "Good",
+    "frames_analyzed": 8,
+    "temporal_score": 0.687080960939549,
+    "avg_ssim": 0.39321209277425495,
+    "freeze_ratio": 0.0,
+    "jitter_index": 0.9140255905390297
+  },
+  {
+    "file": "video_small_compress.mp4",
+    "path": "testing_videos\\video_small_compress.mp4",
+    "mos_predicted": 3.44,
+    "mos_rating": "Good",
+    "avg_quality": 0.6436,
+    "quality_rating": "Good",
+    "frames_analyzed": 8,
+    "temporal_score": 0.5378977568565044,
+    "avg_ssim": 0.8724908743585859,
+    "freeze_ratio": 1.0,
+    "jitter_index": 1.243804739764542
+  },
+  {
+    "file": "video_small_freeze.mp4",
+    "path": "testing_videos\\video_small_freeze.mp4",
+    "mos_predicted": 3.47,
+    "mos_rating": "Good",
+    "avg_quality": 0.7735,
+    "quality_rating": "Good",
+    "frames_analyzed": 8,
+    "temporal_score": 0.5513897303571744,
+    "avg_ssim": 0.9169158254350934,
+    "freeze_ratio": 1.0,
+    "jitter_index": 1.0828647166982106
+  },
+  {
+    "file": "video_small_jitter.mp4",
+    "path": "testing_videos\\video_small_jitter.mp4",
+    "mos_predicted": 3.47,
+    "mos_rating": "Good",
+    "avg_quality": 0.7801,
+    "quality_rating": "Good",
+    "frames_analyzed": 8,
+    "temporal_score": 0.5862836408865999,
+    "avg_ssim": 0.4669604556901114,
+    "freeze_ratio": 0.0,
+    "jitter_index": 0.2394859940695555
+  }
+]

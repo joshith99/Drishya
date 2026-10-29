@@ -97,6 +97,47 @@ python NQS.py video.mp4 --samples 20 --seed 42
 
 ---
 
+## 🧪 Terminal Testing (no UI)
+
+Run both pipelines headlessly on the bundled `testing_videos/` clips.
+
+**Both classical + deep MOS (recommended):**
+```bash
+python cli_test.py testing_videos/video_small.mp4 --temporal
+python cli_test.py testing_videos/video_small_blur.mp4 testing_videos/video_small.mp4 --temporal
+python cli_test.py testing_videos/*.mp4 --json report.json
+```
+
+**Classical only (Phases 1-3):**
+```bash
+python cli_test.py testing_videos/video_small.mp4 --no-deep --temporal
+```
+
+**Deep MOS only (Phase 4):**
+```bash
+python cli_test.py testing_videos/video_small.mp4 --no-classical
+# or call the module directly
+python deep_mos.py testing_videos/video_small.mp4
+python deep_mos.py testing_videos/video_small.mp4 -v            # per-frame feature norms
+python deep_mos.py testing_videos/video_small.mp4 --save-frames out_frames
+python deep_mos.py testing_videos/video_small.mp4 --save-preprocessed out_pre
+python deep_mos.py testing_videos/video_small.mp4 --show-preprocessed
+```
+
+`deep_mos.py` prints the checkpoint/backbone used, video resolution/fps/duration,
+sampled frame indices, the preprocessed input tensor (shape + per-channel
+min/max/mean/std + normalization constants), pooled-feature stats, and MOS
+(raw + normalized + rating). `-v` adds per-frame feature L2 norms;
+`--save-frames DIR` dumps the raw sampled frames to `DIR/<video_stem>/`;
+`--save-preprocessed DIR` dumps the denormalized 224x224 model input;
+`--show-preprocessed` saves and opens a raw-vs-preprocessed montage.
+
+`cli_test.py` reuses `NQS.py` for classical metrics and `deep_mos.py` for the
+frozen EfficientNet-B4 + SVR MOS prediction. `deep_mos.py` is a standalone copy
+of the UI's inference logic so the Streamlit app is never imported headlessly.
+
+---
+
 ## 📐 Metrics Computed
 
 | Metric | Method | Phase |
@@ -118,6 +159,8 @@ python NQS.py video.mp4 --samples 20 --seed 42
 ```
 Drishya/
 ├── phase5_app.py          # 🖥️  Streamlit production UI
+├── cli_test.py            # 🧪  Terminal runner (classical + deep MOS, no UI)
+├── deep_mos.py            # 🔮  Standalone deep MOS inference (Phase 4)
 ├── phase4_svr.py          # 🧠  Deep feature extraction + SVR training
 ├── phase4_train.py        # 🔬  CNN fine-tuning pipeline (future use)
 ├── NQS.py                 # 🎛️  CLI analyzer (Phases 1-3)

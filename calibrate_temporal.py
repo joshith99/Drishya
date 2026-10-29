@@ -110,7 +110,7 @@ def main():
             pct_change = (delta / base_q * 100) if base_q else 0
             
             print(f"\n{label}:")
-            print(f"  Temporal Quality: {_fmt(metrics.get('temporal_quality'), '.3f')} (Δ {delta:+.3f}, {pct_change:+.1f}%)")
+            print(f"  Temporal Quality: {_fmt(metrics.get('temporal_quality'), '.3f')} (delta {delta:+.3f}, {pct_change:+.1f}%)")
             print(f"  SSIM: {_fmt(metrics.get('avg_ssim'), '.4f')}")
             print(f"  Jitter Index: {_fmt(metrics.get('avg_jitter'), '.3f')}")
     

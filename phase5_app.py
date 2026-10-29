@@ -219,14 +219,18 @@ def load_deep_model():
         return None, None, None, None
 
 
-def predict_mos(video_path, svr, backbone, transform, cfg):
+def predict_mos(video_path, svr, backbone, transform, cfg, num_frames=None):
     """Run deep feature extraction + SVR prediction."""
     import torch
     device, NUM_FRAMES, MOS_MIN, MOS_MAX = cfg
+    if num_frames:
+        NUM_FRAMES = int(num_frames)
     try:
         import decord as _d
         vr = _d.VideoReader(str(video_path), num_threads=2, ctx=_d.cpu(0))
         total = len(vr)
+        if total == 0:
+            return None, None
         idx = np.linspace(0, total - 1, NUM_FRAMES, dtype=int)
         frames_np = vr.get_batch(idx).asnumpy()
         tensors = torch.stack([transform(frames_np[i]) for i in range(len(frames_np))])
@@ -316,12 +320,12 @@ def make_gauge(value, title="MOS"):
     return fig
 
 
-def analyse_video_full(video_path, scorer, svr, backbone, transform, cfg):
+def analyse_video_full(video_path, scorer, svr, backbone, transform, cfg, num_frames=None):
     results = {}
 
     # ── Deep MOS prediction ───────────────────────────────────
     if svr is not None:
-        mos, frames_np = predict_mos(video_path, svr, backbone, transform, cfg)
+        mos, frames_np = predict_mos(video_path, svr, backbone, transform, cfg, num_frames)
         results['mos'] = mos
         results['frames_np'] = frames_np
     else:
@@ -331,7 +335,7 @@ def analyse_video_full(video_path, scorer, svr, backbone, transform, cfg):
     # ── Classical metrics ─────────────────────────────────────
     if scorer is not None:
         try:
-            stats = scorer.analyze_video(str(video_path), num_samples=12,
+            stats = scorer.analyze_video(str(video_path), num_samples=num_frames or 12,
                                          sample_method='uniform', temporal=True)
             results['classical'] = stats
         except Exception as e:
@@ -368,6 +372,14 @@ with st.sidebar:
         st.markdown(f"⚡ Device: `{device}`")
 
     st.markdown('<hr class="divider">', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">Analysis Settings</div>', unsafe_allow_html=True)
+    default_frames = cfg[1] if cfg else 8
+    num_frames = st.slider("Frames to sample (uniform)", min_value=2, max_value=64,
+                           value=int(default_frames), step=1,
+                           help="Frames sampled evenly across the video for both the deep "
+                                "MOS prediction and the classical metrics. Higher = slower.")
+
+    st.markdown('<hr class="divider">', unsafe_allow_html=True)
     st.caption("Phases 1–4 unified · April 2026")
 
 
@@ -396,7 +408,7 @@ if "Analyze" in page:
         with st.spinner("Running deep feature extraction + classical metrics…"):
             prog.progress(10, text="Loading video…")
             t0 = time.time()
-            res = analyse_video_full(tmp_path, scorer, svr, backbone, transform, cfg)
+            res = analyse_video_full(tmp_path, scorer, svr, backbone, transform, cfg, num_frames)
             elapsed = time.time() - t0
             prog.progress(100, text=f"Done in {elapsed:.1f}s")
 
@@ -464,7 +476,9 @@ if "Analyze" in page:
         frames_np = res.get('frames_np')
         if frames_np is not None and len(frames_np) > 0:
             st.markdown('<div class="section-header">Sampled Frames</div>', unsafe_allow_html=True)
-            n = min(8, len(frames_np))
+            n = min(num_frames, 16, len(frames_np))
+            if len(frames_np) > n:
+                st.caption(f"Showing {n} of {len(frames_np)} uniformly sampled frames.")
             cols = st.columns(n)
             for i, col in enumerate(cols):
                 col.image(frames_np[i], use_container_width=True)
@@ -535,8 +549,8 @@ elif "Compare" in page:
 
         with st.spinner("Analyzing both videos…"):
             p_a, p_b = save_tmp(up_a), save_tmp(up_b)
-            res_a = analyse_video_full(p_a, scorer, svr, backbone, transform, cfg)
-            res_b = analyse_video_full(p_b, scorer, svr, backbone, transform, cfg)
+            res_a = analyse_video_full(p_a, scorer, svr, backbone, transform, cfg, num_frames)
+            res_b = analyse_video_full(p_b, scorer, svr, backbone, transform, cfg, num_frames)
             os.unlink(p_a); os.unlink(p_b)
 
         mos_a = res_a.get('mos'); mos_b = res_b.get('mos')
@@ -634,7 +648,7 @@ elif "Batch" in page:
                 for i, vid in enumerate(videos):
                     status_box.markdown(f"Processing `{vid.name}` ({i+1}/{len(videos)})…")
                     try:
-                        res = analyse_video_full(vid, scorer, svr, backbone, transform, cfg)
+                        res = analyse_video_full(vid, scorer, svr, backbone, transform, cfg, num_frames)
                         mos = res.get('mos')
                         cl  = res.get('classical') or {}
                         tm  = cl.get('temporal_metrics') or {}
